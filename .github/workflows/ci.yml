@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: go vet ./...
+      # Every failure scenario on many seeds, both read modes; the deliberate bugs must be caught;
+      # the same seed must replay exactly
+      - run: go test -race -count=1 ./...
+      # A bigger sweep: 200 seeded runs per scenario
+      - run: go run ./cmd/quorum-sim -profile all -seeds 200
