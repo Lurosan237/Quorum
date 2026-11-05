@@ -23,6 +23,8 @@ jobs:
       - run: go build -o bin/quorum-server ./cmd/quorum-server
       - run: BENCH_HOST="GitHub Actions runner (ubuntu-latest)." go run ./cmd/quorum-bench -server bin/quorum-server -out bench/results.json
       - run: python bench/report.py
+      # the raw results, in the log too, so they can be read back without the artifact
+      - run: echo '::group::results.json' && cat bench/results.json && echo '::endgroup::'
       - uses: actions/upload-artifact@v4
         with:
           name: bench
