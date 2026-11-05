@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quorum</title>
+<meta name="description" content="Five Raft servers in your browser. Cut their power, cut them off, and check that every answer still fits one order of events.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --night: #161b33;
+  --night-2: #1e2545;
+  --night-3: #2a3260;
+  --ink: #edebf5;
+  --dim: #9a97b8;
+  --wire: #48577f;
+  --lamp: #ffc857;
+  --ok: #6cc5a1;
+  --cut: #f2545b;
+  --display: "Bricolage Grotesque", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--night); }
+body {
+  margin: 0; background: var(--night); color: var(--ink);
+  font: 16px/1.55 var(--body); font-variant-numeric: tabular-nums;
+}
+a { color: var(--lamp); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+header.top { padding: 40px 0 8px; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; }
+h1 {
+  font: 800 clamp(2rem, 5.2vw, 3.6rem)/1.02 var(--display); letter-spacing: -0.03em; margin: 0;
+}
+h1 .lit { color: var(--lamp); }
+h1 .unlit { color: var(--dim); }
+h1.dark .lit { color: var(--cut); }
+.mark { font: 800 1.1rem var(--display); letter-spacing: -0.01em; margin: 0 0 14px; color: var(--ink); }
+.lede { max-width: 60ch; color: var(--dim); margin: 14px 0 0; font-size: 1.06rem; }
+.lede strong { color: var(--ink); font-weight: 700; }
+.toplinks { display: flex; gap: 18px; font-size: .95rem; white-space: nowrap; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); gap: 28px; padding: 24px 0 8px; }
+.ring { position: relative; }
+.ring svg { width: 100%; height: auto; display: block; }
+.clock { position: absolute; left: 0; top: 0; color: var(--dim); font-size: .9rem; }
+.clock b { color: var(--ink); font-weight: 700; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); }
+
+.node { cursor: pointer; }
+.node .body { fill: var(--night-2); stroke: var(--wire); stroke-width: 2; transition: fill .25s, stroke .25s; }
+.node.leader .body { fill: url(#glow); stroke: var(--lamp); }
+.node.candidate .body, .node.pre-candidate .body { stroke: var(--lamp); stroke-dasharray: 6 5; }
+.node.down .body { fill: #0f1326; stroke: #2b3050; }
+.node.isolated .fence { stroke: var(--cut); }
+.node .fence { fill: none; stroke: transparent; stroke-width: 2; stroke-dasharray: 3 6; }
+.node .name { font: 700 22px var(--display); fill: var(--ink); text-anchor: middle; }
+.node.leader .name { fill: #2b1d00; }
+.node.down .name { fill: #4b5079; }
+.node .sub { font: 13px var(--body); fill: var(--dim); text-anchor: middle; }
+.node.leader .sub { fill: #5a4300; }
+.node .role { font: 14px var(--body); fill: var(--dim); text-anchor: middle; }
+.node.leader .role { fill: var(--lamp); }
+.node.down .role { fill: var(--cut); }
+.node:focus-visible .body { stroke: var(--ink); stroke-width: 3; }
+.link { stroke: var(--night-3); stroke-width: 1; }
+.link.cut { stroke: var(--cut); stroke-opacity: .35; stroke-dasharray: 2 6; }
+.client circle { fill: var(--night-3); }
+.client.you circle { fill: var(--ink); }
+.client text { font: 12px var(--body); fill: var(--dim); text-anchor: middle; }
+
+.panel { display: flex; flex-direction: column; gap: 22px; }
+.panel h2 { font: 700 1.15rem/1.2 var(--display); margin: 0 0 8px; letter-spacing: -0.01em; }
+.panel p.hint { margin: 0 0 10px; color: var(--dim); font-size: .92rem; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+button, select, input {
+  font: inherit; color: var(--ink); background: var(--night-2); border: 1px solid var(--night-3);
+  border-radius: 8px; padding: 7px 12px;
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--wire); }
+button[aria-pressed="true"] { background: var(--lamp); color: #2b1d00; border-color: var(--lamp); font-weight: 700; }
+button.go { background: var(--ink); color: var(--night); border-color: var(--ink); font-weight: 700; }
+button:disabled { opacity: .45; cursor: default; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+input[type=text] { width: 9em; }
+input[type=range] { accent-color: var(--lamp); padding: 0; border: 0; background: none; width: 100%; }
+.speed { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; color: var(--dim); font-size: .9rem; }
+.answer { min-height: 1.6em; margin-top: 8px; font-size: .95rem; }
+.answer.wait { color: var(--dim); }
+.verdict { margin-top: 10px; padding: 12px 14px; border-left: 3px solid var(--ok); background: var(--night-2); font-size: .95rem; }
+.verdict.bad { border-left-color: var(--cut); }
+.verdict pre { white-space: pre-wrap; font-size: .8rem; color: var(--dim); margin: 8px 0 0; max-height: 220px; overflow: auto; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stats div { color: var(--dim); font-size: .85rem; }
+.stats b { display: block; color: var(--ink); font: 700 1.5rem/1.1 var(--display); }
+
+.pop {
+  position: absolute; z-index: 5; background: var(--ink); color: var(--night); border-radius: 10px; padding: 10px;
+  display: none; flex-direction: column; gap: 6px; min-width: 190px; box-shadow: 0 10px 30px #0008;
+}
+.pop.open { display: flex; }
+.pop b { font: 700 1rem var(--display); padding: 0 4px 2px; }
+.pop button { background: transparent; color: var(--night); border: 1px solid #c9c6da; text-align: left; }
+.pop button:hover { background: #e0ddef; }
+
+section.logs { padding: 28px 0 8px; }
+section h2.big { font: 800 1.7rem/1.1 var(--display); letter-spacing: -0.02em; margin: 0 0 6px; }
+section p.under { color: var(--dim); margin: 0 0 18px; max-width: 70ch; }
+.logrow { display: grid; grid-template-columns: 54px minmax(0, 1fr) minmax(0, 280px); gap: 14px; align-items: center; padding: 8px 0; border-top: 1px solid var(--night-2); }
+.logrow .who { font: 700 1.05rem var(--display); }
+.logrow.down .who { color: var(--cut); }
+.cells { display: flex; gap: 3px; align-items: center; min-height: 26px; overflow: hidden; }
+.cell { width: 22px; height: 22px; border-radius: 4px; flex: none; position: relative; }
+.cell.open { background: transparent !important; border: 2px solid; }
+.snapcell { height: 22px; padding: 0 8px; border-radius: 4px; background: var(--night-2); color: var(--dim); font-size: .75rem; display: flex; align-items: center; flex: none; white-space: nowrap; }
+.data { font-size: .82rem; color: var(--dim); overflow: hidden; }
+.data div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+.data span { color: var(--ink); }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--dim); font-size: .85rem; margin-top: 10px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; padding: 28px 0; }
+.feed { list-style: none; margin: 0; padding: 0; font-size: .92rem; }
+.feed li { padding: 6px 0; border-top: 1px solid var(--night-2); display: grid; grid-template-columns: 4.5em 1fr; gap: 10px; }
+.feed time { color: var(--dim); }
+.feed .crash { color: var(--cut); }
+.feed .leader { color: var(--lamp); }
+.feed .you { color: var(--ok); }
+.feed:empty::after { content: "Nothing yet. Cut a server's power and see who takes over."; color: var(--dim); }
+.bug { padding: 14px 0; border-top: 1px solid var(--night-2); }
+.bug h3 { font: 700 1.05rem var(--display); margin: 0 0 4px; }
+.bug p { margin: 0 0 10px; color: var(--dim); font-size: .93rem; }
+
+.notes { padding: 12px 0 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+.notes h3 { font: 700 1.05rem var(--display); margin: 0 0 6px; }
+.notes p { margin: 0; color: var(--dim); font-size: .95rem; }
+footer { padding: 24px 0 48px; color: var(--dim); font-size: .9rem; border-top: 1px solid var(--night-2); }
+
+@media (max-width: 900px) {
+  .stage, .two { grid-template-columns: 1fr; }
+  .notes { grid-template-columns: 1fr; gap: 20px; }
+  .logrow { grid-template-columns: 44px minmax(0, 1fr); }
+  .logrow .data { grid-column: 2; }
+  header.top { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .wrap { padding: 0 16px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="mark">Quorum</p>
+      <h1 id="title" aria-live="polite"><span class="lit">5 of 5</span> servers have power.<br><span class="unlit">Three are enough to agree.</span></h1>
+      <p class="lede">Five servers keep one copy of the truth between them, while the power keeps going out. This is
+        <strong>Raft</strong>, written from scratch in Go and compiled to WebAssembly. Every server, message, crash and
+        client below is running in this page. <strong>Click a server</strong> to cut its power or its network.</p>
+    </div>
+    <nav class="toplinks">
+      <a href="https://github.com/Lurosan237/Quorum">Code on GitHub</a>
+      <a href="https://github.com/Lurosan237/Quorum/actions">Chaos test runs</a>
+    </nav>
+  </header>
+
+  <div class="stage">
+    <div class="ring">
+      <div class="clock" aria-live="off"><b id="clock">0.0 s</b> simulated</div>
+      <svg id="svg" viewBox="0 -6 600 624" role="img" aria-label="Five servers in a ring, with messages moving between them">
+        <defs>
+          <radialGradient id="glow"><stop offset="0" stop-color="#fff2c4"/><stop offset=".55" stop-color="#ffc857"/><stop offset="1" stop-color="#e9a72c"/></radialGradient>
+          <radialGradient id="halo"><stop offset=".45" stop-color="#ffc857" stop-opacity=".35"/><stop offset="1" stop-color="#ffc857" stop-opacity="0"/></radialGradient>
+        </defs>
+        <g id="links"></g><g id="halos"></g><g id="clients"></g><g id="msgs"></g><g id="nodes"></g>
+      </svg>
+      <div class="loading" id="loading">Starting five servers…</div>
+      <div class="pop" id="pop" role="menu"></div>
+    </div>
+
+    <div class="panel">
+      <div class="stats">
+        <div><b id="sAnswers">0</b>answers</div>
+        <div><b id="sLeaders">0</b>leaders</div>
+        <div><b id="sCuts">0</b>power cuts</div>
+        <div><b id="sCommitted">0</b>committed</div>
+      </div>
+
+      <div>
+        <h2>Weather</h2>
+        <p class="hint">What the world does to the servers on its own.</p>
+        <div class="seg" id="weather">
+          <button data-p="calm" aria-pressed="true">Calm</button>
+          <button data-p="flaky-mobile">Flaky mobile data</button>
+          <button data-p="power-cuts">Power cuts</button>
+          <button data-p="brownouts">Brownouts</button>
+          <button data-p="split-network">Split network</button>
+          <button data-p="everything">Everything at once</button>
+        </div>
+      </div>
+
+      <div>
+        <h2>Speed</h2>
+        <div class="speed">
+          <span>Slow motion</span>
+          <input type="range" id="speed" min="0" max="100" value="40" aria-label="Simulation speed">
+          <span>Real time</span>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button id="pause">Pause</button>
+          <button id="reset">Start over</button>
+        </div>
+      </div>
+
+      <div>
+        <h2>Send your own request</h2>
+        <p class="hint">Four simulated clients are already busy. Yours goes through the same network.</p>
+        <div class="row">
+          <select id="key" aria-label="Key"><option>k0</option><option>k1</option><option>k2</option></select>
+          <input type="text" id="val" value="hello" aria-label="Value" maxlength="20">
+          <button data-k="put">Put</button>
+          <button data-k="append">Append</button>
+          <button data-k="get">Get</button>
+        </div>
+        <div class="answer" id="answer"></div>
+      </div>
+
+      <div>
+        <h2>Check the answers</h2>
+        <p class="hint">Every answer any client got must fit one order of events, as if there were a single copy.</p>
+        <button class="go" id="check">Check every answer so far</button>
+        <div id="verdict"></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="logs">
+    <h2 class="big">What each server has written down</h2>
+    <p class="under">One square per log entry, coloured by the term it was written in. Filled squares are committed: a
+      majority has them, so no future leader can lose them. Hollow ones may still be overwritten. Older entries are folded
+      into a snapshot.</p>
+    <div id="logs"></div>
+    <div class="legend">
+      <span><i style="background:var(--ink)"></i>committed</span>
+      <span><i style="border:2px solid var(--ink)"></i>not yet committed</span>
+      <span>Right: the values each server's copy of the store holds</span>
+    </div>
+  </section>
+
+  <div class="two">
+    <section>
+      <h2 class="big">What just happened</h2>
+      <ul class="feed" id="feed"></ul>
+    </section>
+    <section>
+      <h2 class="big">Break it on purpose</h2>
+      <p class="under">A checker that never fails proves nothing. Each run below is one whole recorded run, at full speed,
+        with a bug planted in it; the checks must catch it. Then the same seed again with the bug removed.</p>
+      <div class="bug">
+        <h3>Forget client sessions</h3>
+        <p>Without them, a retried append is applied twice when the first answer got lost. Flaky mobile data, seed 1.</p>
+        <div class="row"><button data-bug="no-sessions" data-p="flaky-mobile" data-seed="1">Run with the bug</button>
+          <button data-bug="" data-p="flaky-mobile" data-seed="1">Run without it</button></div>
+        <div class="answer" data-out></div>
+      </div>
+      <div class="bug">
+        <h3>Forget a vote after a power cut</h3>
+        <p>A server that votes, loses power before saving the vote, and votes again lets two leaders win the same term. Brownouts, seed 292.</p>
+        <div class="row"><button data-bug="forget-vote" data-p="brownouts" data-seed="292">Run with the bug</button>
+          <button data-bug="" data-p="brownouts" data-seed="292">Run without it</button></div>
+        <div class="answer" data-out></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="notes">
+    <div>
+      <h3>Why power cuts</h3>
+      <p>I study in Bertoua, Cameroon, where the power and the internet go out often. A store that keeps answering through
+        that, and never gives a wrong answer, is the one I wanted to build.</p>
+    </div>
+    <div>
+      <h3>The same code, for real</h3>
+      <p>This Raft runs here unchanged as five separate servers with an on-disk log. On every push, CI kills them, freezes
+        them, cuts the network, blacks them all out at once and checks hundreds of thousands of answers.</p>
+    </div>
+    <div>
+      <h3>Reads too</h3>
+      <p>A leader cut off from the others may not know it was replaced. Before answering a read, it confirms with a
+        majority that it is still the leader (ReadIndex), so it never serves a stale value.</p>
+    </div>
+  </section>
+
+  <footer>Quorum, by Len (Lurosan237). Raft, the simulator, the checker and this page are all in the
+    <a href="https://github.com/Lurosan237/Quorum">repository</a>.</footer>
+</div>
+
+<script src="wasm_exec.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

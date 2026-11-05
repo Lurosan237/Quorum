@@ -3,3 +3,4 @@
 tools/netwatch/netwatch-data/
 /bin/
 /chaos/
+/site/wasm_exec.js

@@ -95,6 +95,7 @@ func (r Result) OK() bool { return len(r.Violations) == 0 && r.Linear.OK }
 const clientBase = 1000 // client ids on the network
 
 type envelope struct {
+	sent int64
 	at   int64
 	seq  int64
 	from int
@@ -148,6 +149,8 @@ type client struct {
 	target   int
 	leader   int
 	idleTill int64
+	manual   bool // driven by a person (the browser demo), not by the random workload
+	answer   string
 }
 
 // Sim is one simulated world.
@@ -246,6 +249,7 @@ func (s *Sim) post(e envelope) {
 		copies = 2
 	}
 	for i := 0; i < copies; i++ {
+		e.sent = s.now
 		e.at = s.now + int64(f.DelayMin+s.rng.Intn(f.DelayMax-f.DelayMin+1))
 		s.seq++
 		e.seq = s.seq
@@ -457,7 +461,7 @@ func (s *Sim) checkLeaders() {
 
 func (s *Sim) clientAct(c *client) {
 	if c.pending == nil {
-		if s.now < c.idleTill {
+		if c.manual || s.now < c.idleTill {
 			return
 		}
 		c.seq++
@@ -507,6 +511,9 @@ func (s *Sim) clientReceive(c *client, r *response) {
 		Output: r.Value, Call: c.call, Return: s.now})
 	s.latency = append(s.latency, s.now-c.call)
 	s.res.Completed++
+	if c.manual {
+		s.event("you", c.target, "your %s %s answered by server %d: %q", op.Kind, op.Key, c.target, r.Value)
+	}
 	c.leader = c.target
 	c.pending = nil
 	c.idleTill = s.now + int64(s.rng.Intn(5))
