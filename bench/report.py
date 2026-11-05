@@ -57,7 +57,9 @@ def chart_scaling():
         ax.set_xlabel("concurrent clients")
     a.set_title("Answers per second (mixed reads and writes)")
     a.set_ylim(bottom=0)
-    b.set_title("Response time, ms (solid: 99th percentile, dashed: median)")
+    b.set_title("Response time, ms")
+    b.plot([], [], color=INK2, lw=2, label="99th percentile")
+    b.plot([], [], color=INK2, lw=1.5, ls="--", label="median")
     b.set_ylim(bottom=0)
     b.legend(loc="upper left")
     save(fig, "scaling.png")
@@ -81,7 +83,7 @@ def chart_ablation():
 def chart_failover():
     gaps = R["failover"]["gaps_ms"]
     fig, ax = plt.subplots(figsize=(7, 2.4))
-    ax.scatter(gaps, [0] * len(gaps), s=60, color=S1, edgecolor=SURFACE, linewidth=2, zorder=3)
+    ax.scatter(gaps, [((i * 7) % 5 - 2) * 0.12 for i in range(len(gaps))], s=60, color=S1, edgecolor=SURFACE, linewidth=2, zorder=3)
     med = statistics.median(gaps)
     ax.axvline(med, color=INK2, lw=1, ls="--")
     ax.annotate(f"median {med:.0f} ms", (med, 0.6), xytext=(6, 0), textcoords="offset points", color=INK2)
@@ -179,9 +181,11 @@ unless told to with `-no-fsync`.
 
 The leader was killed with `kill -9` {R["failover"]["trials"]} times while 8 clients wrote, and restarted a
 second later. Time until a write sent after the kill was answered: median {statistics.median(gaps):.0f} ms,
-fastest {min(gaps):.0f} ms, slowest {max(gaps):.0f} ms. Followers wait {R["failover"]["election_timeout_ms"]} ms
-(randomised) without a heartbeat before they start an election, which sets most of this; the rest is
-a pre-vote round, a vote round and the new leader's first commit. History linearizable:
+fastest {min(gaps):.0f} ms, slowest {max(gaps):.0f} ms. Each follower waits a random {R["failover"]["election_timeout_ms"]} ms
+without a heartbeat before it starts an election, and the first of the four to time out usually wins,
+so most of this is that wait; the rest is a pre-vote round, a vote round and the new leader's first
+commit. A shorter timeout would fail over faster but would also start needless elections on a slow
+network, which is the trade-off the flaky-mobile scenario exists to test. History linearizable:
 {yes(R["failover"]["linearizable"])}.
 
 ## Catching up after an outage
@@ -191,8 +195,9 @@ a pre-vote round, a vote round and the new leader's first commit. History linear
                       ("back in step after", lambda c: f'{c["catchup_ms"]:.0f} ms', True),
                       ("by snapshot", lambda c: "yes" if c["via_snapshot"] else "no", False),
                       ("linearizable", lambda c: yes(c["linearizable"]), False)])}
-A follower was killed while 16 clients kept writing, then started again. The time includes starting
-the process and replaying its log from disk. When it has missed more than the leader still keeps in
+A follower was killed while 16 clients kept writing, then started again. "Back in step" is when it had
+applied everything the leader had committed at the moment it restarted; the time includes starting
+the process and replaying its own log from disk. When it has missed more than the leader still keeps in
 its log, the leader sends a snapshot of the whole store instead of the entries.
 
 ## The simulator
