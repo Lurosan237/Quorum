@@ -49,10 +49,10 @@ const (
 	MsgPreVoteResp
 	MsgVote
 	MsgVoteResp
-	MsgApp         // append entries (also the heartbeat)
+	MsgApp // append entries (also the heartbeat)
 	MsgAppResp
-	MsgSnap        // install snapshot
-	MsgReadIndex   // follower asks the leader to confirm a read
+	MsgSnap      // install snapshot
+	MsgReadIndex // follower asks the leader to confirm a read
 	MsgReadIndexResp
 )
 
@@ -115,14 +115,14 @@ type Ready struct {
 
 // Config of a node.
 type Config struct {
-	ID            int
-	Peers         []int // all members, including ID
-	ElectionTicks int   // a follower starts an election after [ElectionTicks, 2*ElectionTicks) ticks of silence
-	HeartbeatTicks int
+	ID               int
+	Peers            []int // all members, including ID
+	ElectionTicks    int   // a follower starts an election after [ElectionTicks, 2*ElectionTicks) ticks of silence
+	HeartbeatTicks   int
 	MaxEntriesPerMsg int
-	Seed          int64 // randomised election timeouts, seeded so simulations repeat exactly
-	PreVote       bool
-	CheckQuorum   bool
+	Seed             int64 // randomised election timeouts, seeded so simulations repeat exactly
+	PreVote          bool
+	CheckQuorum      bool
 }
 
 // Persisted is what a node finds on disk when it restarts.
@@ -143,15 +143,15 @@ type Node struct {
 	vote int
 	lead int
 
-	log      raftLog
-	commit   uint64
-	applied  uint64 // handed out for applying (via Ready)
+	log     raftLog
+	commit  uint64
+	applied uint64 // handed out for applying (via Ready)
 
-	votes      map[int]bool
-	next       map[int]uint64
-	match      map[int]uint64
-	active     map[int]bool // heard from since the last CheckQuorum
-	probing    map[int]bool // waiting for a reply before sending more (one append in flight while probing)
+	votes       map[int]bool
+	next        map[int]uint64
+	match       map[int]uint64
+	active      map[int]bool // heard from since the last CheckQuorum
+	probing     map[int]bool // waiting for a reply before sending more (one append in flight while probing)
 	pendingSnap map[int]bool
 
 	electionElapsed  int
@@ -171,10 +171,10 @@ type Node struct {
 }
 
 type pendingRead struct {
-	id     uint64
-	from   int // node that asked (self for local reads)
-	index  uint64
-	acks   map[int]bool
+	id    uint64
+	from  int // node that asked (self for local reads)
+	index uint64
+	acks  map[int]bool
 }
 
 // New creates a node from what it finds on disk (zero Persisted for a fresh one).

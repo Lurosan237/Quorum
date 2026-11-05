@@ -47,13 +47,13 @@ func (o Op) String() string {
 
 // Result of a check.
 type Result struct {
-	OK        bool
-	Keys      int
-	Ops       int
-	Explored  int    // states visited by the search
-	BadKey    string // first key whose history is not linearizable
-	Explain   string // the operations on that key, in call order
-	GaveUp    bool   // search budget exhausted (inconclusive, never reported as a pass)
+	OK       bool
+	Keys     int
+	Ops      int
+	Explored int    // states visited by the search
+	BadKey   string // first key whose history is not linearizable
+	Explain  string // the operations on that key, in call order
+	GaveUp   bool   // search budget exhausted (inconclusive, never reported as a pass)
 }
 
 // Check checks a history. budget caps the states explored per key (0 = a large default).

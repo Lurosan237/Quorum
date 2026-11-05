@@ -56,9 +56,9 @@ type session struct {
 
 // Store is the state machine.
 type Store struct {
-	Data     map[string]string   `json:"data"`
-	Sessions map[uint64]session  `json:"sessions"`
-	Applied  uint64              `json:"applied"`
+	Data     map[string]string  `json:"data"`
+	Sessions map[uint64]session `json:"sessions"`
+	Applied  uint64             `json:"applied"`
 }
 
 func New() *Store {

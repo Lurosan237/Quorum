@@ -22,17 +22,17 @@ import (
 
 // Faults describes how hostile the world is. Times are in ticks (one tick = 10 ms of simulated time).
 type Faults struct {
-	Name        string
-	Drop        float64 // share of messages lost
-	Duplicate   float64 // share delivered twice
-	DelayMin    int
-	DelayMax    int
-	CrashEvery  int // mean ticks between server crashes (0 = never)
-	DownMin     int // how long a crashed server stays down
-	DownMax     int
-	SplitEvery  int // mean ticks between network partitions (0 = never)
-	SplitMin    int
-	SplitMax    int
+	Name       string
+	Drop       float64 // share of messages lost
+	Duplicate  float64 // share delivered twice
+	DelayMin   int
+	DelayMax   int
+	CrashEvery int // mean ticks between server crashes (0 = never)
+	DownMin    int // how long a crashed server stays down
+	DownMax    int
+	SplitEvery int // mean ticks between network partitions (0 = never)
+	SplitMin   int
+	SplitMax   int
 }
 
 // Profiles: the failures this store is built for.
@@ -41,7 +41,7 @@ var Profiles = map[string]Faults{
 	"flaky-mobile": {Name: "flaky-mobile", Drop: 0.10, Duplicate: 0.02, DelayMin: 1, DelayMax: 12},
 	"power-cuts":   {Name: "power-cuts", DelayMin: 1, DelayMax: 3, CrashEvery: 150, DownMin: 30, DownMax: 300},
 	// brief flickers, often in the middle of an election: what a vote that never reached the disk would break
-	"brownouts": {Name: "brownouts", DelayMin: 1, DelayMax: 4, CrashEvery: 25, DownMin: 1, DownMax: 15},
+	"brownouts":     {Name: "brownouts", DelayMin: 1, DelayMax: 4, CrashEvery: 25, DownMin: 1, DownMax: 15},
 	"split-network": {Name: "split-network", DelayMin: 1, DelayMax: 3, SplitEvery: 250, SplitMin: 50, SplitMax: 400},
 	"everything": {Name: "everything", Drop: 0.08, Duplicate: 0.02, DelayMin: 1, DelayMax: 10,
 		CrashEvery: 200, DownMin: 30, DownMax: 300, SplitEvery: 300, SplitMin: 50, SplitMax: 400},
@@ -49,18 +49,18 @@ var Profiles = map[string]Faults{
 
 // Config of a run.
 type Config struct {
-	Nodes        int
-	Clients      int
-	Keys         int
-	Ticks        int
-	Seed         int64
-	Faults       Faults
-	ReadIndex    bool // serve gets with ReadIndex instead of through the log
-	CompactEvery int  // snapshot once this many entries are applied past the last one (0 = never)
-	NoPreVote    bool
+	Nodes         int
+	Clients       int
+	Keys          int
+	Ticks         int
+	Seed          int64
+	Faults        Faults
+	ReadIndex     bool // serve gets with ReadIndex instead of through the log
+	CompactEvery  int  // snapshot once this many entries are applied past the last one (0 = never)
+	NoPreVote     bool
 	NoCheckQuorum bool
 	ClientTimeout int
-	Bug          string // deliberately break something, to show the checks catch it (tests only)
+	Bug           string // deliberately break something, to show the checks catch it (tests only)
 }
 
 // Event is something worth showing (the visualiser draws these).
@@ -73,18 +73,18 @@ type Event struct {
 
 // Result of a run.
 type Result struct {
-	Seed        int64
-	Profile     string
-	Completed   int     // client ops answered
-	Unknown     int     // ops still waiting at the end (outcome unknown)
-	Elections   int     // leaders elected
-	Crashes     int
-	Partitions  int
-	Violations  []string
-	Linear      linear.Result
-	LatencyP50  int64 // ticks from first send to answer
-	LatencyP99  int64
-	Committed   uint64
+	Seed       int64
+	Profile    string
+	Completed  int // client ops answered
+	Unknown    int // ops still waiting at the end (outcome unknown)
+	Elections  int // leaders elected
+	Crashes    int
+	Partitions int
+	Violations []string
+	Linear     linear.Result
+	LatencyP50 int64 // ticks from first send to answer
+	LatencyP99 int64
+	Committed  uint64
 }
 
 // OK says the run broke nothing.
@@ -127,8 +127,8 @@ type server struct {
 	store     *kv.Store
 	saved     raft.Persisted
 	up        bool
-	waiting   map[uint64]waiter       // log index -> who to answer
-	reads     map[uint64]readWait     // ReadIndex request id -> read
+	waiting   map[uint64]waiter   // log index -> who to answer
+	reads     map[uint64]readWait // ReadIndex request id -> read
 	readyRead []readWait
 	readSeq   uint64
 }
@@ -152,25 +152,25 @@ type client struct {
 
 // Sim is one simulated world.
 type Sim struct {
-	cfg      Config
-	rng      *rand.Rand
-	now      int64
-	seq      int64
-	servers  []*server
-	clients  []*client
-	net      []envelope
-	group    map[int]int // partition: node -> side; nil = whole
-	healAt   int64
+	cfg                  Config
+	rng                  *rand.Rand
+	now                  int64
+	seq                  int64
+	servers              []*server
+	clients              []*client
+	net                  []envelope
+	group                map[int]int // partition: node -> side; nil = whole
+	healAt               int64
 	nextSplit, nextCrash int64
-	restarts []restart
+	restarts             []restart
 
-	history  []linear.Op
-	latency  []int64
-	Events   []Event
-	res      Result
+	history []linear.Op
+	latency []int64
+	Events  []Event
+	res     Result
 
-	leaders  map[uint64]int            // term -> the leader seen (election safety)
-	applied  map[uint64]raft.Entry     // index -> entry applied by anyone (state machine safety)
+	leaders map[uint64]int        // term -> the leader seen (election safety)
+	applied map[uint64]raft.Entry // index -> entry applied by anyone (state machine safety)
 }
 
 // New builds a world from a config.

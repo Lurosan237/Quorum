@@ -64,23 +64,23 @@ type readWait struct {
 
 // Server is one running node.
 type Server struct {
-	cfg     Config
-	node    *raft.Node
-	store   *kv.Store
-	wal     *wal
-	inbox   chan raft.Message
-	props   chan proposal
-	reads   chan read
-	status  chan chan raft.Status
-	waiting map[uint64]waiter
+	cfg          Config
+	node         *raft.Node
+	store        *kv.Store
+	wal          *wal
+	inbox        chan raft.Message
+	props        chan proposal
+	reads        chan read
+	status       chan chan raft.Status
+	waiting      map[uint64]waiter
 	pendingReads map[uint64]readWait
 	readyReads   []readWait
-	readSeq uint64
-	peers   map[int]chan raft.Message
-	http    *http.Server
-	client  *http.Client
-	stop    chan struct{}
-	wg      sync.WaitGroup
+	readSeq      uint64
+	peers        map[int]chan raft.Message
+	http         *http.Server
+	client       *http.Client
+	stop         chan struct{}
+	wg           sync.WaitGroup
 }
 
 var (
