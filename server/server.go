@@ -212,6 +212,10 @@ func (s *Server) propose(p proposal) {
 }
 
 func (s *Server) startRead(r read) {
+	if st := s.node.Status(); st.Role != raft.Leader { // reads go to the leader, like writes
+		r.reply <- result{Err: ErrNotLeader, Leader: st.Lead}
+		return
+	}
 	s.readSeq++
 	if err := s.node.ReadIndex(s.readSeq); err != nil {
 		r.reply <- result{Err: ErrNotLeader, Leader: s.node.Status().Lead}
