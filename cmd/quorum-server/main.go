@@ -25,6 +25,8 @@ func main() {
 	data := flag.String("data", "data", "data directory")
 	tick := flag.Duration("tick", 10*time.Millisecond, "one Raft tick (an election takes 20-40 ticks)")
 	compact := flag.Uint64("compact", 1000, "snapshot every this many applied entries (0 = never)")
+	noBatch := flag.Bool("no-batch", false, "one request per disk write (for benchmarks)")
+	noSync := flag.Bool("no-fsync", false, "UNSAFE, for benchmarks: don't fsync the log")
 	flag.Parse()
 
 	nodes, err := client.ParseNodes(*peers)
@@ -36,7 +38,7 @@ func main() {
 	}
 	logger := log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
 	s, err := server.New(server.Config{ID: *id, Peers: nodes, Listen: *listen, DataDir: *data, Tick: *tick,
-		CompactEvery: *compact, Logger: logger})
+		CompactEvery: *compact, Logger: logger, NoBatch: *noBatch, NoSync: *noSync})
 	if err != nil {
 		log.Fatal(err)
 	}

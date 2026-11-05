@@ -19,14 +19,15 @@ import (
 // Client is one session: its writes are numbered, and a retried write keeps its number, so the
 // cluster applies it once however many times it is sent.
 type Client struct {
-	ID      uint64
-	nodes   map[int]string
-	ids     []int
-	leader  int
-	seq     uint64
-	http    *http.Client
-	rng     *rand.Rand
-	Timeout time.Duration // give up on a request after this long (its outcome is then unknown)
+	ID         uint64
+	nodes      map[int]string
+	ids        []int
+	leader     int
+	seq        uint64
+	http       *http.Client
+	rng        *rand.Rand
+	Timeout    time.Duration // give up on a request after this long (its outcome is then unknown)
+	MaxBackoff time.Duration // longest wait between retries
 }
 
 // New makes a client for the cluster nodes (id -> base URL).
@@ -36,7 +37,7 @@ func New(id uint64, nodes map[int]string) *Client {
 		ids = append(ids, n)
 	}
 	sort.Ints(ids)
-	return &Client{ID: id, nodes: nodes, ids: ids, leader: -1, Timeout: 5 * time.Second,
+	return &Client{ID: id, nodes: nodes, ids: ids, leader: -1, Timeout: 5 * time.Second, MaxBackoff: 200 * time.Millisecond,
 		http: &http.Client{Timeout: 2 * time.Second}, rng: rand.New(rand.NewSource(int64(id)))}
 }
 
@@ -63,7 +64,7 @@ func (c *Client) Do(kind, key, value string) (string, bool) {
 		seq = c.seq
 	}
 	deadline := time.Now().Add(c.Timeout)
-	backoff := 10 * time.Millisecond
+	backoff := min(10*time.Millisecond, c.MaxBackoff)
 	for time.Now().Before(deadline) {
 		target := c.leader
 		if _, ok := c.nodes[target]; !ok {
@@ -94,8 +95,8 @@ func (c *Client) Do(kind, key, value string) (string, bool) {
 		}
 		c.leader = -1
 		time.Sleep(backoff + time.Duration(c.rng.Int63n(int64(backoff))))
-		if backoff < 200*time.Millisecond {
-			backoff *= 2
+		if backoff *= 2; backoff > c.MaxBackoff {
+			backoff = c.MaxBackoff
 		}
 	}
 	return "", false
@@ -103,10 +104,13 @@ func (c *Client) Do(kind, key, value string) (string, bool) {
 
 // Workload settings.
 type Workload struct {
-	Clients  int
-	Keys     int
-	Duration time.Duration
-	Seed     int64
+	Clients    int
+	Keys       int
+	Duration   time.Duration
+	Seed       int64
+	Start      time.Time     // the clock histories are timed on (zero = when Run starts)
+	MaxBackoff time.Duration // longest wait between retries (zero = 200 ms)
+	Mix        string        // "mixed" (default: 40% gets, 25% puts, 35% appends), "write" (puts) or "read" (gets)
 }
 
 // Stats of a run.
@@ -118,7 +122,10 @@ type Stats struct {
 // Run drives the cluster with concurrent clients (40% gets, 25% puts, 35% appends, every value
 // unique) and returns everything that happened, timed on one clock.
 func Run(nodes map[int]string, w Workload) ([]linear.Op, Stats) {
-	start := time.Now()
+	start := w.Start
+	if start.IsZero() {
+		start = time.Now()
+	}
 	var (
 		mu    sync.Mutex
 		hist  []linear.Op
@@ -130,11 +137,21 @@ func Run(nodes map[int]string, w Workload) ([]linear.Op, Stats) {
 		go func(i int) {
 			defer wg.Done()
 			c := New(uint64(w.Seed)*1000+uint64(i)+1, nodes)
+			if w.MaxBackoff > 0 {
+				c.MaxBackoff = w.MaxBackoff
+			}
 			rng := rand.New(rand.NewSource(w.Seed*7919 + int64(i)))
 			for n := 0; time.Since(start) < w.Duration; n++ {
 				key := fmt.Sprintf("k%d", rng.Intn(w.Keys))
 				kind, value := "get", ""
-				switch r := rng.Intn(100); {
+				r := rng.Intn(100)
+				switch w.Mix {
+				case "write":
+					r = 0
+				case "read":
+					r = 99
+				}
+				switch {
 				case r < 25:
 					kind, value = "put", fmt.Sprintf("c%d.%d;", i, n)
 				case r < 60:

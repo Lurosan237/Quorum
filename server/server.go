@@ -33,6 +33,8 @@ type Config struct {
 	Tick         time.Duration // one Raft tick
 	CompactEvery uint64
 	Logger       *log.Logger
+	NoBatch      bool // handle one request per disk write (benchmarks only: shows what batching buys)
+	NoSync       bool // skip fsync (benchmarks only: unsafe, a power cut can lose acknowledged writes)
 }
 
 type proposal struct {
@@ -97,6 +99,9 @@ func New(cfg Config) (*Server, error) {
 		cfg.Logger = log.Default()
 	}
 	w, saved, err := openWAL(cfg.DataDir)
+	if w != nil {
+		w.noSync = cfg.NoSync
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +178,27 @@ func (s *Server) run() {
 		case c := <-s.status:
 			c <- s.node.Status()
 		}
+		if !s.cfg.NoBatch {
+			s.drain()
+		}
 		s.process()
+	}
+}
+
+// drain takes everything else already waiting, so that one Ready (one disk write, one message
+// per peer) covers many requests: under load this is what makes a leader fast.
+func (s *Server) drain() {
+	for i := 0; i < 512; i++ {
+		select {
+		case m := <-s.inbox:
+			s.node.Step(m)
+		case p := <-s.props:
+			s.propose(p)
+		case r := <-s.reads:
+			s.startRead(r)
+		default:
+			return
+		}
 	}
 }
 

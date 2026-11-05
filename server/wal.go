@@ -14,10 +14,11 @@ import (
 // line, fsynced before any message that depends on it is sent. When a snapshot is taken the file
 // is rewritten (snapshot + the entries after it) and swapped in atomically by a rename.
 type wal struct {
-	path string
-	f    *os.File
-	w    *bufio.Writer
-	recs int
+	path   string
+	f      *os.File
+	w      *bufio.Writer
+	recs   int
+	noSync bool
 }
 
 type walRecord struct {
@@ -104,6 +105,9 @@ func (w *wal) save(rd raft.Ready) error {
 		return err
 	}
 	w.recs++
+	if w.noSync {
+		return nil
+	}
 	return w.f.Sync()
 }
 
