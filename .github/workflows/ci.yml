@@ -22,3 +22,19 @@ jobs:
       - run: go test -race -count=1 ./...
       # A bigger sweep: 200 seeded runs per scenario
       - run: go run ./cmd/quorum-sim -profile all -seeds 200
+
+  chaos:
+    # Five real servers in Docker, killed, frozen, cut off, slowed and blacked out at random for two
+    # minutes while ten clients write and read; the whole history must be linearizable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: scripts/chaos.sh 120
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-report
+          path: chaos/

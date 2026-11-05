@@ -1,0 +1,51 @@
+# Five Quorum nodes on one network. scripts/chaos.sh breaks them in every way it can.
+name: quorum
+services:
+  n1:
+    image: quorum
+    container_name: n1
+    hostname: n1
+    command: ["-id", "1", "-peers", "1=http://n1:7000,2=http://n2:7000,3=http://n3:7000,4=http://n4:7000,5=http://n5:7000"]
+    ports: ["7001:7000"]
+    volumes: ["n1:/data"]
+    networks: [quorum]
+  n2:
+    image: quorum
+    container_name: n2
+    hostname: n2
+    command: ["-id", "2", "-peers", "1=http://n1:7000,2=http://n2:7000,3=http://n3:7000,4=http://n4:7000,5=http://n5:7000"]
+    ports: ["7002:7000"]
+    volumes: ["n2:/data"]
+    networks: [quorum]
+  n3:
+    image: quorum
+    container_name: n3
+    hostname: n3
+    command: ["-id", "3", "-peers", "1=http://n1:7000,2=http://n2:7000,3=http://n3:7000,4=http://n4:7000,5=http://n5:7000"]
+    ports: ["7003:7000"]
+    volumes: ["n3:/data"]
+    networks: [quorum]
+  n4:
+    image: quorum
+    container_name: n4
+    hostname: n4
+    command: ["-id", "4", "-peers", "1=http://n1:7000,2=http://n2:7000,3=http://n3:7000,4=http://n4:7000,5=http://n5:7000"]
+    ports: ["7004:7000"]
+    volumes: ["n4:/data"]
+    networks: [quorum]
+  n5:
+    image: quorum
+    container_name: n5
+    hostname: n5
+    command: ["-id", "5", "-peers", "1=http://n1:7000,2=http://n2:7000,3=http://n3:7000,4=http://n4:7000,5=http://n5:7000"]
+    ports: ["7005:7000"]
+    volumes: ["n5:/data"]
+    networks: [quorum]
+networks:
+  quorum: {}
+volumes:
+  n1: {}
+  n2: {}
+  n3: {}
+  n4: {}
+  n5: {}
