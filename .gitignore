@@ -1,2 +1,3 @@
 /site/quorum.wasm
 *.test
+tools/netwatch/netwatch-data/
